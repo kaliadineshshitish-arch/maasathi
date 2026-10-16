@@ -1,0 +1,158 @@
+name: Deploy backend to Cloudflare
+
+# Maasathi backend ko Cloudflare par deploy karta hai.
+# GitHub ke server se chalta hai (Cloudflare tak pahunchta hai).
+#
+# Aapko sirf 2 secrets daalne hain (repo Settings > Secrets and variables > Actions):
+#   CLOUDFLARE_API_TOKEN   - Cloudflare API Token (Workers + KV edit permission)
+#   CLOUDFLARE_ACCOUNT_ID  - Cloudflare Account ID
+#
+# Phir: Actions tab > "Deploy backend to Cloudflare" > Run workflow
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ALLOWED_ORIGIN: https://kaliadineshshitish-arch.github.io
+      CF_ENV: sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install -g wrangler@3
+
+      - name: Check secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN ya CLOUDFLARE_ACCOUNT_ID set nahi hai. Repo Settings > Secrets > Actions mein daalein."
+            exit 1
+          fi
+          echo "Secrets mil gaye."
+
+      - name: Create or find KV namespace
+        id: kv
+        working-directory: backend
+        run: |
+          set -e
+          LIST=$(npx wrangler kv:namespace list 2>/dev/null || npx wrangler kv namespace list 2>/dev/null || echo "[]")
+          KV_ID=$(echo "$LIST" | jq -r '.[]? | select(.title | contains("MAASATHI_KV")) | .id' 2>/dev/null | head -1)
+          if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
+            echo "Naya KV namespace bana rahe hain..."
+            OUT=$(npx wrangler kv:namespace create MAASATHI_KV 2>&1 || npx wrangler kv namespace create MAASATHI_KV 2>&1 || true)
+            echo "$OUT"
+            KV_ID=$(echo "$OUT" | grep -oE 'id = "[a-f0-9]+"' | head -1 | grep -oE '[a-f0-9]+' || true)
+          fi
+          if [ -z "$KV_ID" ]; then
+            echo "::error::KV namespace id nahi mila."
+            exit 1
+          fi
+          echo "KV_ID=$KV_ID"
+          sed -i "s/PASTE_YOUR_KV_NAMESPACE_ID_HERE/$KV_ID/" wrangler.toml
+          grep -A2 'kv_namespaces' wrangler.toml
+          echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
+
+      - name: Deploy Worker
+        id: deploy
+        working-directory: backend
+        run: |
+          set -e
+          OUT=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
+          URL=$(echo "$OUT" | grep -oE 'https://[a-zA-Z0-9._-]+\.workers\.dev' | head -1 || true)
+          if [ -z "$URL" ]; then
+            echo "::warning::Worker URL output mein nahi mila, config.js manually update karna padega."
+          fi
+          echo "WORKER_URL=$URL"
+          echo "worker_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Set Worker secrets
+        working-directory: backend
+        env:
+          CF_APP_ID: ${{ secrets.CF_APP_ID }}
+          CF_SECRET_KEY: ${{ secrets.CF_SECRET_KEY }}
+        run: |
+          set -e
+          echo "$ALLOWED_ORIGIN" | npx wrangler secret put ALLOWED_ORIGIN
+          echo "$CF_ENV"         | npx wrangler secret put CF_ENV
+          if [ -n "$CF_APP_ID" ]; then
+            echo "$CF_APP_ID"     | npx wrangler secret put CF_APP_ID
+            echo "$CF_SECRET_KEY" | npx wrangler secret put CF_SECRET_KEY
+          else
+            echo "Cashfree keys nahi diye — payment baad mein chalega."
+          fi
+
+          # VAPID keys: config.js mein public key ho to wahi use karo, warna naya banao
+          cd ..
+          EXISTING=$(grep -oE 'VAPID_PUBLIC_KEY: "[^"]+"' js/config.js | sed 's/.*: "//; s/"$//' || true)
+          if [ -z "$EXISTING" ]; then
+            cd backend
+            node generate-vapid.js > /tmp/vapid.txt 2>&1 || true
+            PUB=$(grep '^VAPID_PUBLIC_KEY=' /tmp/vapid.txt | cut -d= -f2- || true)
+            PRIV=$(grep '^VAPID_PRIVATE_JWK=' /tmp/vapid.txt | cut -d= -f2- || true)
+            if [ -n "$PUB" ]; then
+              echo "$PUB"  | npx wrangler secret put VAPID_PUBLIC_KEY
+              echo "$PRIV" | npx wrangler secret put VAPID_PRIVATE_JWK
+              echo "mailto:grievance@example.com" | npx wrangler secret put VAPID_SUBJECT
+              echo "VAPID_PUBLIC_KEY=$PUB" >> $GITHUB_ENV
+            fi
+          else
+            echo "VAPID public key config.js mein already hai — naya nahi banaya."
+            echo "VAPID_PUBLIC_KEY=$EXISTING" >> $GITHUB_ENV
+          fi
+
+      - name: Wire app to backend (config.js)
+        env:
+          WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+        run: |
+          set -e
+          PUB="$VAPID_PUBLIC_KEY"
+          echo "Worker URL : $WORKER_URL"
+          echo "VAPID pub  : ${PUB:0:24}..."
+          python3 - "$WORKER_URL" "$PUB" <<'PY'
+          import re, sys
+          url, pub = sys.argv[1], sys.argv[2]
+          p = 'js/config.js'
+          s = open(p, encoding='utf-8').read()
+          if url:
+              s = re.sub(r'API_BASE:\s*"[^"]*"', 'API_BASE: "%s"' % url, s)
+          if pub:
+              s = re.sub(r'VAPID_PUBLIC_KEY:\s*"[^"]*"', 'VAPID_PUBLIC_KEY: "%s"' % pub, s)
+          open(p, 'w', encoding='utf-8').write(s)
+          print("config.js update ho gaya")
+          PY
+
+      - name: Commit config.js (Pages apne aap redeploy karega)
+        run: |
+          git config user.name "maasathi-deploy-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add js/config.js
+          if git diff --cached --quiet; then
+            echo "Koi badlav nahi."
+          else
+            git commit -m "chore: wire app to backend (API_BASE + VAPID public key)"
+            git push
+            echo "Config commit ho gaya — GitHub Pages 1-2 minute mein update ho jaayega."
+          fi
+
+      - name: Summary
+        run: |
+          echo "### ✅ Backend deploy ho gaya" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Worker URL: ${{ steps.deploy.outputs.worker_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- KV namespace id: ${{ steps.kv.outputs.kv_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ALLOWED_ORIGIN: $ALLOWED_ORIGIN" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Ab app kholkar **Settings → Turn on reminders** dabayein." >> $GITHUB_STEP_SUMMARY

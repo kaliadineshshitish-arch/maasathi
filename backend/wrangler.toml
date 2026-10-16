@@ -1,0 +1,26 @@
+name = "maasathi-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# ---- Secrets: yahan NAHI likhte. Inhe set karein: ----
+#   wrangler secret put CF_APP_ID
+#   wrangler secret put CF_SECRET_KEY
+#   wrangler secret put CF_ENV            # "sandbox" ya "production"
+#   wrangler secret put ALLOWED_ORIGIN    # jaise https://maasathi.pages.dev
+#
+#   # Web Push (reminders jab app band ho):
+#   node generate-vapid.js                # keys banayein
+#   wrangler secret put VAPID_PUBLIC_KEY
+#   wrangler secret put VAPID_PRIVATE_JWK
+#   wrangler secret put VAPID_SUBJECT     # mailto:you@example.com
+
+# ---- KV namespace (premium entitlement + reminders + push subs) ----
+# Pehle banayein:  wrangler kv namespace create MAASATHI_KV
+# Jo id milega use neeche daalein, phir:  wrangler deploy
+[[kv_namespaces]]
+binding = "MAASATHI_KV"
+id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+
+# ---- Cron: har minute reminder check (app band ho to bhi push jaata hai) ----
+[triggers]
+crons = ["* * * * *"]
