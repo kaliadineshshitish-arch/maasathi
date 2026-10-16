@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#7c3aed" />
+<title>Maasathi — Pregnancy Tracker</title>
+<meta name="description" content="Privacy-first pregnancy tracker. Your data stays on your phone." />
+<!-- Security note: connect-src includes Cashfree + Cloudflare Workers.
+     If your backend is on a different domain, add it here. -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://sdk.cashfree.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://*.workers.dev; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+<meta name="referrer" content="no-referrer" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<!-- ============================ CONSENT (DPDP) ============================ -->
+<div id="consentScreen" class="overlay">
+  <div class="consent-card">
+    <div class="brand">Maasathi</div>
+    <label class="field-label" data-i18n="set_language">Language</label>
+    <select id="consentLang" class="input"></select>
+    <h1 data-i18n="consent_title">Your data stays on your phone</h1>
+    <p class="muted" data-i18n="consent_intro">Before we start...</p>
+    <ul class="consent-list">
+      <li><b data-i18n="consent_l1_b">Where does your data go?</b> <span data-i18n="consent_l1"></span></li>
+      <li><b data-i18n="consent_l2_b">What do we collect?</b> <span data-i18n="consent_l2"></span></li>
+      <li><b data-i18n="consent_l3_b">Do we share it?</b> <span data-i18n="consent_l3"></span></li>
+      <li><b data-i18n="consent_l4_b">Your rights:</b> <span data-i18n="consent_l4"></span></li>
+      <li><b data-i18n="consent_l5_b">Age:</b> <span data-i18n="consent_l5"></span></li>
+    </ul>
+    <label class="check-row">
+      <input type="checkbox" id="consentCheck" />
+      <span data-i18n="consent_check">I have read the above and I agree.</span>
+    </label>
+    <button id="consentBtn" class="btn btn-primary" disabled data-i18n="consent_btn">Continue</button>
+    <p class="tiny muted"><span data-i18n="consent_disclaimer"></span>
+      <a href="privacy.html" target="_blank" rel="noopener" data-i18n="privacy_policy">Privacy Policy</a></p>
+  </div>
+</div>
+
+<!-- ============================ LOCK SCREEN ============================ -->
+<div id="lockScreen" class="overlay hidden">
+  <div class="consent-card">
+    <div class="brand">Maasathi</div>
+    <h1 data-i18n="lock_title">App lock</h1>
+    <p class="muted" data-i18n="lock_hint">Enter your PIN.</p>
+    <input type="password" id="unlockPin" inputmode="numeric" class="input" data-i18n-ph="lock_placeholder" />
+    <button id="unlockBtn" class="btn btn-primary" data-i18n="lock_btn">Unlock</button>
+    <p id="lockError" class="tiny error"></p>
+    <p class="tiny muted" data-i18n="lock_forgot">Forgot PIN?</p>
+  </div>
+</div>
+
+<!-- ============================ MAIN APP ============================ -->
+<div id="app" class="app hidden">
+
+  <header class="topbar">
+    <div>
+      <div class="topbar-title" id="topbarTitle">Maasathi</div>
+      <div class="topbar-sub" id="topbarSub"></div>
+    </div>
+    <button id="lockNowBtn" class="icon-btn" title="Lock">&#128274;</button>
+  </header>
+
+  <main id="main">
+
+    <!-- HOME -->
+    <section id="view-home" class="view">
+      <div class="hero-card">
+        <div class="hero-week"><span id="homeWeek">—</span><small data-i18n="home_weeks">weeks</small></div>
+        <div class="hero-right">
+          <div class="hero-days"><b id="homeDaysLeft">—</b> <span data-i18n="home_days_left">days left</span></div>
+          <div class="muted" id="homeTrimester"></div>
+          <div class="muted"><span data-i18n="home_due">Due date</span>: <b id="homeDue">—</b></div>
+        </div>
+      </div>
+      <div class="progress"><div id="homeProgress" class="progress-fill"></div></div>
+
+      <div class="card">
+        <div class="card-label"><span data-i18n="home_this_week">This week</span> (<span data-i18n="home_week">Week</span> <span id="homeWeekNum">—</span>)</div>
+        <div class="size-badge" id="homeSize">—</div>
+        <p id="homeNote" class="muted">—</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="home_today_log">Today's log</div>
+        <div class="quick-row">
+          <button class="quick" data-quick="symptom" data-i18n="btn_add_symptom">Add symptom</button>
+          <button class="quick" data-quick="weight" data-i18n="btn_add_weight">Add weight</button>
+          <button class="quick" data-quick="mood" data-i18n="btn_add_mood">Add mood</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="home_tools">Tools</div>
+        <div class="quick-row">
+          <button class="quick" data-nav="tools" data-i18n="btn_kick_counter">Kick counter</button>
+          <button class="quick" data-nav="tools" data-i18n="btn_contraction_timer">Contraction timer</button>
+          <button class="quick" data-nav="records" data-i18n="btn_appointments">Appointments</button>
+        </div>
+      </div>
+      <p class="tiny muted disclaimer" data-i18n="disclaimer_short"></p>
+    </section>
+
+    <!-- TRACK -->
+    <section id="view-track" class="view hidden">
+      <div class="card">
+        <div class="card-label" data-i18n="track_symptom_title">Log a symptom</div>
+        <div id="symptomChips" class="chips"></div>
+        <textarea id="symptomNote" class="input" rows="2" data-i18n-ph="track_symptom_note_ph"></textarea>
+        <button id="saveSymptomBtn" class="btn btn-primary" data-i18n="track_save_symptom">Save</button>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="track_weight_title">Weight in kg</div>
+        <input id="weightInput" class="input" type="number" inputmode="decimal" data-i18n-ph="track_weight_ph" />
+        <button id="saveWeightBtn" class="btn btn-primary" data-i18n="track_save_weight">Save weight</button>
+        <canvas id="weightChart" width="600" height="220" class="chart"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="track_bp_title">Blood pressure</div>
+        <div class="two-col">
+          <input id="bpSys" class="input" type="number" data-i18n-ph="bp_systolic" />
+          <input id="bpDia" class="input" type="number" data-i18n-ph="bp_diastolic" />
+        </div>
+        <button id="saveBpBtn" class="btn btn-primary" data-i18n="track_save_bp">Save BP</button>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="track_log_title">Your log</div>
+        <div id="logList" class="log-list"></div>
+      </div>
+    </section>
+
+    <!-- TOOLS -->
+    <section id="view-tools" class="view hidden">
+      <div class="card">
+        <div class="card-label" data-i18n="tools_kick_title">Kick counter</div>
+        <div class="counter-display" id="kickCount">0</div>
+        <p class="tiny muted" id="kickTimer"></p>
+        <div class="quick-row">
+          <button id="kickAddBtn" class="quick" data-i18n="kick_add">Add one kick</button>
+          <button id="kickStartBtn" class="quick" data-i18n="kick_session_start">Start session</button>
+          <button id="kickResetBtn" class="quick" data-i18n="kick_reset">Reset</button>
+        </div>
+        <p class="tiny muted" data-i18n="kick_note"></p>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="tools_contraction_title">Contraction timer</div>
+        <div class="counter-display" id="contractionStatus"></div>
+        <p class="tiny muted" id="contractionInfo"></p>
+        <div class="quick-row">
+          <button id="contractionBtn" class="quick" data-i18n="contraction_btn">Start or stop</button>
+          <button id="contractionResetBtn" class="quick" data-i18n="kick_reset">Reset</button>
+        </div>
+        <div id="contractionList" class="log-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="tools_edd_title">Due date calculator</div>
+        <input id="eddLmp" class="input" type="date" />
+        <p class="tiny muted" data-i18n="edd_lmp_hint"></p>
+        <button id="eddCalcBtn" class="btn btn-primary" data-i18n="edd_btn">Calculate</button>
+        <p id="eddResult" class="result-text"></p>
+      </div>
+    </section>
+
+    <!-- RECORDS -->
+    <section id="view-records" class="view hidden">
+      <div class="card">
+        <div class="card-label" data-i18n="records_appt_title">Appointments</div>
+        <input id="apptTitle" class="input" data-i18n-ph="appt_ph" />
+        <input id="apptDate" class="input" type="datetime-local" />
+        <label class="check-row"><input type="checkbox" id="apptRemind" checked /><span data-i18n="appt_remind">Remind me at this time</span></label>
+        <button id="saveApptBtn" class="btn btn-primary" data-i18n="appt_save">Add appointment</button>
+        <div id="apptList" class="log-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="reminder_title">Reminders</div>
+        <p class="tiny" id="notifStatus"></p>
+        <button id="notifBtn" class="quick" data-i18n="notif_enable">Turn on reminders</button>
+        <div class="field-label" data-i18n="medicine_title">Medicine reminder</div>
+        <input id="remName" class="input" data-i18n-ph="med_name" />
+        <input id="remDose" class="input" data-i18n-ph="med_dose" />
+        <input id="remTime" class="input" type="time" />
+        <button id="addRemBtn" class="btn btn-primary" data-i18n="add_medicine">Add medicine reminder</button>
+        <div id="reminderList" class="log-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="log_title">Reminder history</div>
+        <div id="reminderLog" class="log-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="records_checklist_title">Hospital bag checklist</div>
+        <div id="checklistArea"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="records_notes_title">Notes</div>
+        <textarea id="notesArea" class="input" rows="4" data-i18n-ph="notes_ph"></textarea>
+        <button id="saveNotesBtn" class="btn btn-primary" data-i18n="notes_save">Save notes</button>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="report_title">Doctor report</div>
+        <button id="reportBtn" class="btn btn-primary" data-i18n="report_btn">Download doctor report as PDF</button>
+        <p id="reportMsg" class="tiny"></p>
+        <p class="tiny muted" data-i18n="report_print_hint"></p>
+      </div>
+    </section>
+
+    <!-- PREMIUM (Cashfree) -->
+    <section id="view-premium" class="view hidden">
+      <div class="card premium-hero">
+        <div class="brand">Maasathi</div>
+        <h1 id="premiumTitle" data-i18n="premium_title">Maasathi Premium</h1>
+        <p class="muted" data-i18n="premium_sub"></p>
+      </div>
+      <div class="card">
+        <ul class="benefit-list">
+          <li data-i18n="premium_benefit_1"></li>
+          <li data-i18n="premium_benefit_2"></li>
+          <li data-i18n="premium_benefit_3"></li>
+          <li data-i18n="premium_benefit_4"></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div id="premiumStatus" class="premium-status"></div>
+        <div class="plan-toggle">
+          <label class="plan-opt"><input type="radio" name="plan" value="monthly" checked /><span data-i18n="premium_plan_monthly">Monthly</span> <b id="priceMonthly"></b></label>
+          <label class="plan-opt"><input type="radio" name="plan" value="yearly" /><span data-i18n="premium_plan_yearly">Yearly</span> <b id="priceYearly"></b></label>
+        </div>
+        <button id="buyBtn" class="btn btn-primary" data-i18n="premium_buy">Pay with Cashfree</button>
+        <button id="restoreBtn" class="btn btn-outline" data-i18n="restore">Restore purchase</button>
+        <p id="premiumMsg" class="tiny"></p>
+        <p class="tiny muted" data-i18n="premium_restore_hint"></p>
+        <p class="tiny muted" data-i18n="premium_note"></p>
+      </div>
+      <div class="card">
+        <div class="card-label" data-i18n="premium_restore_code">Restore code from another device</div>
+        <input id="restoreCodeInput" class="input" placeholder="xxxx-xxxx-xxxx" />
+        <button id="restoreCodeBtn" class="btn btn-outline" data-i18n="restore">Restore</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view hidden">
+      <div class="card">
+        <div class="card-label" data-i18n="set_profile_title">Your profile</div>
+        <label class="field-label" data-i18n="set_name">Name, optional</label>
+        <input id="setName" class="input" data-i18n-ph="set_name_ph" />
+        <label class="field-label" data-i18n="set_due">Due date</label>
+        <input id="setDue" class="input" type="date" />
+        <label class="field-label" data-i18n="set_pin">App lock PIN, optional</label>
+        <input id="setPin" class="input" type="password" inputmode="numeric" data-i18n-ph="set_pin_ph" />
+        <label class="field-label" data-i18n="set_language">Language</label>
+        <select id="setLang" class="input"></select>
+        <button id="saveProfileBtn" class="btn btn-primary" data-i18n="set_save">Save</button>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="set_restore_code">Your restore code</div>
+        <div class="code-box"><code id="restoreCode">—</code><button id="copyCodeBtn" class="quick" data-i18n="copy">Copy</button></div>
+        <p class="tiny muted" data-i18n="set_restore_hint"></p>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="set_data_title">Your data</div>
+        <p class="tiny muted" data-i18n="set_data_note"></p>
+        <button id="exportBtn" class="btn btn-outline" data-i18n="set_export">Download my data</button>
+        <button id="deleteBtn" class="btn btn-danger" data-i18n="set_delete">Delete all data</button>
+      </div>
+
+      <div class="card">
+        <div class="card-label" data-i18n="set_help_title">Help and information</div>
+        <p class="tiny"><span data-i18n="set_privacy">Privacy Policy</span>: <a href="privacy.html" target="_blank" rel="noopener">read</a></p>
+        <p class="tiny"><span data-i18n="terms_link">Terms of Use</span>: <a href="terms.html" target="_blank" rel="noopener">read</a></p>
+        <p class="tiny"><span data-i18n="set_grievance">Grievance Officer</span>: <a id="grievanceLink" href="#">—</a></p>
+        <p class="tiny muted" data-i18n="set_medical_note"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="bottom-nav">
+    <button data-nav="home" class="nav-btn active"><span>&#127968;</span><em data-i18n="nav_home">Home</em></button>
+    <button data-nav="track" class="nav-btn"><span>&#128203;</span><em data-i18n="nav_track">Track</em></button>
+    <button data-nav="tools" class="nav-btn"><span>&#9201;</span><em data-i18n="nav_tools">Tools</em></button>
+    <button data-nav="records" class="nav-btn"><span>&#128218;</span><em data-i18n="nav_records">Records</em></button>
+    <button data-nav="premium" class="nav-btn"><span>&#11088;</span><em data-i18n="nav_premium">Premium</em></button>
+    <button data-nav="settings" class="nav-btn"><span>&#9881;</span><em data-i18n="nav_settings">Settings</em></button>
+  </nav>
+</div>
+
+<!-- modal -->
+<div id="modal" class="overlay hidden">
+  <div class="consent-card">
+    <h1 id="modalTitle"></h1>
+    <div id="modalBody"></div>
+    <button id="modalClose" class="btn btn-outline" data-i18n="modal_close">Close</button>
+  </div>
+</div>
+
+<!-- alarm (reminder acknowledgement) -->
+<div id="alarmScreen" class="overlay hidden">
+  <div class="consent-card alarm-card">
+    <div class="brand" id="alarmBrand">—</div>
+    <h1 id="alarmTitle">—</h1>
+    <p class="muted" id="alarmDose"></p>
+    <p class="tiny muted" id="alarmTime"></p>
+    <button id="alarmTakenBtn" class="btn btn-primary" data-i18n="alarm_taken">Taken</button>
+    <button id="alarmSnoozeBtn" class="btn btn-outline" data-i18n="alarm_snooze">Snooze</button>
+    <button id="alarmSkipBtn" class="btn btn-outline" data-i18n="alarm_skip">Skip</button>
+  </div>
+</div>
+
+<div id="printArea" class="print-only"></div>
+
+<script src="js/i18n/en.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/content.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
