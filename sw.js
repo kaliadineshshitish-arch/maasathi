@@ -1,6 +1,6 @@
 /* Maasathi service worker — offline-first, cache only own files.
  * No external requests. Privacy: nothing leaves the device. */
-const CACHE = 'maasathi-v9';
+const CACHE = 'maasathi-v10';
 const ASSETS = [
   './', './index.html', './privacy.html', './terms.html',
   './css/styles.css',

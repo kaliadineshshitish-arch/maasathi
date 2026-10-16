@@ -224,6 +224,10 @@
         <h1 id="premiumTitle" data-i18n="premium_title">Maasathi Premium</h1>
         <p class="muted" data-i18n="premium_sub"></p>
       </div>
+      <div class="card hidden" id="premiumSoon">
+        <div class="card-label" data-i18n="premium_soon">Premium is coming soon</div>
+        <p class="tiny muted" data-i18n="premium_soon_note"></p>
+      </div>
       <div class="card">
         <ul class="benefit-list">
           <li data-i18n="premium_benefit_1"></li>
@@ -232,7 +236,7 @@
           <li data-i18n="premium_benefit_4"></li>
         </ul>
       </div>
-      <div class="card">
+      <div class="card" id="premiumPayCard">
         <div id="premiumStatus" class="premium-status"></div>
         <div class="plan-toggle">
           <label class="plan-opt"><input type="radio" name="plan" value="monthly" checked /><span data-i18n="premium_plan_monthly">Monthly</span> <b id="priceMonthly"></b></label>
@@ -244,7 +248,7 @@
         <p class="tiny muted" data-i18n="premium_restore_hint"></p>
         <p class="tiny muted" data-i18n="premium_note"></p>
       </div>
-      <div class="card">
+      <div class="card" id="premiumRestoreCard">
         <div class="card-label" data-i18n="premium_restore_code">Restore code from another device</div>
         <input id="restoreCodeInput" class="input" placeholder="xxxx-xxxx-xxxx" />
         <button id="restoreCodeBtn" class="btn btn-outline" data-i18n="restore">Restore</button>
@@ -259,6 +263,7 @@
         <input id="setName" class="input" data-i18n-ph="set_name_ph" />
         <label class="field-label" data-i18n="set_due">Due date</label>
         <input id="setDue" class="input" type="date" />
+        <p class="tiny muted" data-i18n="due_hint"></p>
         <label class="field-label" data-i18n="set_pin">App lock PIN, optional</label>
         <input id="setPin" class="input" type="password" inputmode="numeric" data-i18n-ph="set_pin_ph" />
         <label class="field-label" data-i18n="set_language">Language</label>

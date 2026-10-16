@@ -249,7 +249,23 @@ function renderRecords() {
   $('#notesArea').value = state.notes || '';
 }
 
+/* Payment backend set hai? (API_BASE bhara ho tabhi Premium UI dikhta hai) */
+function premiumConfigured() {
+  const cfg = window.APP_CONFIG || {};
+  return !!(cfg.API_BASE);
+}
+
 function renderPremium() {
+  const configured = premiumConfigured();
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.classList.toggle('no-premium', !configured);
+  const navBtn = document.querySelector('.nav-btn[data-nav="premium"]');
+  if (navBtn) navBtn.classList.toggle('hidden', !configured);
+  const payCard = $('#premiumPayCard'); if (payCard) payCard.classList.toggle('hidden', !configured);
+  const resCard = $('#premiumRestoreCard'); if (resCard) resCard.classList.toggle('hidden', !configured);
+  const soon = $('#premiumSoon'); if (soon) soon.classList.toggle('hidden', configured);
+  if (!configured) return;
+
   const active = isPremiumActive();
   const p = state.premium || {};
   $('#buyBtn').classList.toggle('hidden', active);
@@ -575,7 +591,8 @@ function buildDoctorReport() {
 }
 
 function downloadReport() {
-  if (!isPremiumActive()) {
+  // Payment chalu hone se pehle report free hai (warna koi use hi na kar paata)
+  if (premiumConfigured() && !isPremiumActive()) {
     $('#reportMsg').textContent = window.t('report_premium_only');
     showView('premium');
     return;

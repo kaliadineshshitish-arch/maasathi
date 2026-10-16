@@ -118,6 +118,7 @@ main{padding:4px 16px 90px;flex:1}
 }
 .nav-btn span{font-size:1.15rem}
 .nav-btn em{font-style:normal}
+.bottom-nav.no-premium{grid-template-columns:repeat(5,1fr)}
 .nav-btn.active{color:var(--primary);font-weight:700}
 .disclaimer{margin:0 4px 10px}
 
