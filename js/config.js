@@ -36,8 +36,8 @@ window.APP_CONFIG = {
   PLAY_SKUS: { monthly: "maasathi_monthly", yearly: "maasathi_yearly" },
 
   /* Shown in Settings and the privacy policy. */
-  GRIEVANCE_EMAIL: "grievance@example.com",
+  GRIEVANCE_EMAIL: "kaliadineshshitish@gmail.com",
 
   /* Support / contact shown to users. */
-  SUPPORT_EMAIL: "support@example.com"
+  SUPPORT_EMAIL: "kaliadineshshitish@gmail.com"
 };
