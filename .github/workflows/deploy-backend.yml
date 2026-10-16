@@ -3,9 +3,11 @@ name: Deploy backend to Cloudflare
 # Maasathi backend ko Cloudflare par deploy karta hai.
 # GitHub ke server se chalta hai (Cloudflare tak pahunchta hai).
 #
-# Aapko sirf 2 secrets daalne hain (repo Settings > Secrets and variables > Actions):
+# Repo Settings > Secrets and variables > Actions mein 4 secrets daalein:
 #   CLOUDFLARE_API_TOKEN   - Cloudflare API Token (Workers + KV edit permission)
 #   CLOUDFLARE_ACCOUNT_ID  - Cloudflare Account ID
+#   CASHFREE_APP_ID        - Cashfree App ID (TEST_... ya PROD_...)
+#   CASHFREE_SECRET_KEY    - Cashfree Secret Key
 #
 # Phir: Actions tab > "Deploy backend to Cloudflare" > Run workflow
 
@@ -80,8 +82,8 @@ jobs:
       - name: Set Worker secrets
         working-directory: backend
         env:
-          CF_APP_ID: ${{ secrets.CF_APP_ID }}
-          CF_SECRET_KEY: ${{ secrets.CF_SECRET_KEY }}
+          CF_APP_ID: ${{ secrets.CASHFREE_APP_ID }}
+          CF_SECRET_KEY: ${{ secrets.CASHFREE_SECRET_KEY }}
         run: |
           set -e
           echo "$ALLOWED_ORIGIN" | npx wrangler secret put ALLOWED_ORIGIN
