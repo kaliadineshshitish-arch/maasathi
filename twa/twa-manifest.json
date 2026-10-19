@@ -1,0 +1,46 @@
+{
+  "packageId": "app.maasathi.tracker",
+  "host": "kaliadineshshitish-arch.github.io",
+  "name": "Maasathi",
+  "launcherName": "Maasathi",
+  "display": "standalone",
+  "themeColor": "#7c3aed",
+  "themeColorDark": "#1e1b2e",
+  "navigationColor": "#7c3aed",
+  "navigationColorDark": "#1e1b2e",
+  "navigationDividerColor": "#7c3aed",
+  "navigationDividerColorDark": "#1e1b2e",
+  "backgroundColor": "#faf7fd",
+  "enableNotifications": true,
+  "startUrl": "/maasathi/index.html",
+  "iconUrl": "https://kaliadineshshitish-arch.github.io/maasathi/icons/icon-512.png",
+  "maskableIconUrl": "https://kaliadineshshitish-arch.github.io/maasathi/icons/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "maasathi"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://kaliadineshshitish-arch.github.io/maasathi/manifest.webmanifest",
+  "fallbackType": "webview",
+  "features": {
+    "playBilling": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://kaliadineshshitish-arch.github.io/maasathi/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
