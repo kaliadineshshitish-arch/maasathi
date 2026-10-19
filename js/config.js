@@ -10,7 +10,7 @@ window.APP_CONFIG = {
      "https://maasathi-api.yourname.workers.dev"
      Leave "" until your backend is deployed — Premium tab will show a
      friendly message until then. */
-  API_BASE: "",
+  API_BASE: "https://maasathi-api.dineshkalia1982.workers.dev",
 
   /* "sandbox" for testing, "production" when your Cashfree account is live. */
   CASHFREE_MODE: "sandbox",
@@ -18,7 +18,7 @@ window.APP_CONFIG = {
   /* Web Push (reminders jab app band ho).
      `node backend/generate-vapid.js` chalayein aur PUBLIC key yahan paste karein.
      PRIVATE key sirf backend secret mein jaati hai — yahan NAHI. */
-  VAPID_PUBLIC_KEY: "",
+  VAPID_PUBLIC_KEY: "BAWjwECIPjQ-eKgL6yYNv2iE4fzORbJbiBbY8dYnXPEgerShcxzxSqeep2mLQi9rvggAGZNRoxbMcpH_24jWt78",
 
   /* Prices in rupees (integers). Change as you like. */
   PLANS: {
