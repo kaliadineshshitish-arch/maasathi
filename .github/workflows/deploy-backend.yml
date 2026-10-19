@@ -107,9 +107,25 @@ jobs:
           if [ -n "$CF_APP_ID" ]; then
             case "$CF_APP_ID" in
               PROD*) ENV_MODE="production" ;;
-              *)     ENV_MODE="sandbox"    ;;
+              TEST*) ENV_MODE="sandbox"    ;;
+              *)
+                # App ID mein PROD_/TEST_ prefix nahi — dono endpoint test karo
+                echo "App ID prefix PROD_/TEST_ nahi hai - dono environment test kar rahe hain..."
+                SCODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
+                  -H "x-client-id: $CF_APP_ID" -H "x-client-secret: $CF_SECRET_KEY" \
+                  -H "x-api-version: 2025-01-01" \
+                  "https://sandbox.cashfree.com/pg/orders?limit=1" || echo "000")
+                PCODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
+                  -H "x-client-id: $CF_APP_ID" -H "x-client-secret: $CF_SECRET_KEY" \
+                  -H "x-api-version: 2025-01-01" \
+                  "https://api.cashfree.com/pg/orders?limit=1" || echo "000")
+                echo "sandbox=$SCODE  production=$PCODE"
+                if [ "$PCODE" = "200" ]; then ENV_MODE="production"
+                elif [ "$SCODE" = "200" ]; then ENV_MODE="sandbox"
+                else ENV_MODE="production"; fi
+                ;;
             esac
-            echo "Cashfree mode: $ENV_MODE (App ID prefix: ${CF_APP_ID:0:4}...)"
+            echo "Cashfree mode: $ENV_MODE"
             echo "$CF_APP_ID"     | npx wrangler secret put CF_APP_ID
             echo "$CF_SECRET_KEY" | npx wrangler secret put CF_SECRET_KEY
           else
