@@ -109,19 +109,22 @@ jobs:
               PROD*) ENV_MODE="production" ;;
               TEST*) ENV_MODE="sandbox"    ;;
               *)
-                # App ID mein PROD_/TEST_ prefix nahi — dono endpoint test karo
+                # App ID mein PROD_/TEST_ prefix nahi — dono endpoint test karo.
+                # 401 = galat environment (keys match nahi karti).
+                # 200/400/404 = auth theek hai (bas order nahi mila).
                 echo "App ID prefix PROD_/TEST_ nahi hai - dono environment test kar rahe hain..."
+                PROBE_ID="maasathi_probe_$(date +%s)"
                 SCODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
                   -H "x-client-id: $CF_APP_ID" -H "x-client-secret: $CF_SECRET_KEY" \
                   -H "x-api-version: 2025-01-01" \
-                  "https://sandbox.cashfree.com/pg/orders?limit=1" || echo "000")
+                  "https://sandbox.cashfree.com/pg/orders/$PROBE_ID" || echo "000")
                 PCODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
                   -H "x-client-id: $CF_APP_ID" -H "x-client-secret: $CF_SECRET_KEY" \
                   -H "x-api-version: 2025-01-01" \
-                  "https://api.cashfree.com/pg/orders?limit=1" || echo "000")
-                echo "sandbox=$SCODE  production=$PCODE"
-                if [ "$PCODE" = "200" ]; then ENV_MODE="production"
-                elif [ "$SCODE" = "200" ]; then ENV_MODE="sandbox"
+                  "https://api.cashfree.com/pg/orders/$PROBE_ID" || echo "000")
+                echo "sandbox=$SCODE  production=$PCODE  (401 = galat env)"
+                if [ "$PCODE" != "401" ] && [ "$PCODE" != "000" ]; then ENV_MODE="production"
+                elif [ "$SCODE" != "401" ] && [ "$SCODE" != "000" ]; then ENV_MODE="sandbox"
                 else ENV_MODE="production"; fi
                 ;;
             esac
