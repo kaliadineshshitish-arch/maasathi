@@ -224,6 +224,14 @@ async function saveReminders(request, env) {
     updatedAt: new Date().toISOString(),
   };
   await env.MAASATHI_KV.put('rem:' + userId, JSON.stringify(rec));
+  // Index key maintain karein — taaki cron KV list() (free tier 1,000/din) na kare
+  try {
+    const idx = (await env.MAASATHI_KV.get('remidx', 'json')) || [];
+    if (Array.isArray(idx) && idx.indexOf(userId) < 0) {
+      idx.push(userId);
+      await env.MAASATHI_KV.put('remidx', JSON.stringify(idx.slice(-5000)));
+    }
+  } catch (e) {}
   return json({ ok: true, stored: true, count: rec.reminders.length }, 200, env);
 }
 
@@ -316,42 +324,51 @@ async function playVerify(request, env) {
 async function runReminders(env) {
   if (!env.MAASATHI_KV || !env.VAPID_PRIVATE_JWK || !env.VAPID_PUBLIC_KEY) return;
   const now = new Date();
-  let cursor;
-  do {
-    const page = await env.MAASATHI_KV.list({ prefix: 'rem:', cursor });
-    for (const k of page.keys) {
-      const userId = k.name.slice(4);
-      const rec = await env.MAASATHI_KV.get(k.name, 'json');
-      if (!rec || !Array.isArray(rec.reminders) || !rec.reminders.length) continue;
-      const tz = rec.tz || 'Asia/Kolkata';
-      const N = NOTIF[rec.lang] || NOTIF.en;
-      const hhmm = localHHMM(tz, now), date = localDate(tz, now);
-      const due = rec.reminders.filter((r) => {
-        if (!r || r.enabled === false || !r.time) return false;
-        if (r.repeat === 'once') return r.date === date && r.time === hhmm;
-        return r.time === hhmm;
-      });
-      if (!due.length) continue;
-      const sub = await env.MAASATHI_KV.get('sub:' + userId, 'json');
-      if (!sub) continue;
-      for (const r of due) {
-        const sentKey = 'sent:' + userId + '|' + r.id + '|' + date + '|' + r.time;
-        if (await env.MAASATHI_KV.get(sentKey)) continue;
-        const isAppt = r.type === 'appointment';
-        const payload = {
-          title: isAppt ? N.appt : N.med,
-          body: (r.title || '') + (isAppt
-            ? (r.time ? ' · ' + r.time : '')
-            : (r.dose ? ' — ' + r.dose : '')),
-          tag: 'maasathi-' + r.id,
-        };
-        const res = await sendPush(env, sub, payload);
-        if (res === 404 || res === 410) { await env.MAASATHI_KV.delete('sub:' + userId); break; }
-        if (res >= 200 && res < 300) await env.MAASATHI_KV.put(sentKey, '1', { expirationTtl: 172800 });
-      }
+
+  // KV list() free tier mein sirf 1,000/din — isliye index key se users nikaalte hain
+  let idx = await env.MAASATHI_KV.get('remidx', 'json');
+  if (!Array.isArray(idx)) {
+    // pehli baar (ya purana data): ek hi list() chala kar index bana lein
+    idx = [];
+    let cursor;
+    do {
+      const page = await env.MAASATHI_KV.list({ prefix: 'rem:', cursor });
+      for (const k of page.keys) idx.push(k.name.slice(4));
+      cursor = page.list_complete ? null : page.cursor;
+    } while (cursor);
+    try { await env.MAASATHI_KV.put('remidx', JSON.stringify(idx.slice(-5000))); } catch (e) {}
+  }
+
+  for (const userId of idx) {
+    const rec = await env.MAASATHI_KV.get('rem:' + userId, 'json');
+    if (!rec || !Array.isArray(rec.reminders) || !rec.reminders.length) continue;
+    const tz = rec.tz || 'Asia/Kolkata';
+    const N = NOTIF[rec.lang] || NOTIF.en;
+    const hhmm = localHHMM(tz, now), date = localDate(tz, now);
+    const due = rec.reminders.filter((r) => {
+      if (!r || r.enabled === false || !r.time) return false;
+      if (r.repeat === 'once') return r.date === date && r.time === hhmm;
+      return r.time === hhmm;
+    });
+    if (!due.length) continue;
+    const sub = await env.MAASATHI_KV.get('sub:' + userId, 'json');
+    if (!sub) continue;
+    for (const r of due) {
+      const sentKey = 'sent:' + userId + '|' + r.id + '|' + date + '|' + r.time;
+      if (await env.MAASATHI_KV.get(sentKey)) continue;
+      const isAppt = r.type === 'appointment';
+      const payload = {
+        title: isAppt ? N.appt : N.med,
+        body: (r.title || '') + (isAppt
+          ? (r.time ? ' \u00b7 ' + r.time : '')
+          : (r.dose ? ' \u2014 ' + r.dose : '')),
+        tag: 'maasathi-' + r.id,
+      };
+      const res = await sendPush(env, sub, payload);
+      if (res === 404 || res === 410) { await env.MAASATHI_KV.delete('sub:' + userId); break; }
+      if (res >= 200 && res < 300) await env.MAASATHI_KV.put(sentKey, '1', { expirationTtl: 172800 });
     }
-    cursor = page.list_complete ? null : page.cursor;
-  } while (cursor);
+  }
 }
 
 function localHHMM(tz, d) {
