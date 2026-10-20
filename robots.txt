@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kaliadineshshitish-arch.github.io/maasathi/sitemap.xml
